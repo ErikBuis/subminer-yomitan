@@ -18,6 +18,7 @@
 
 import {ExtensionError} from '../core/extension-error.js';
 import {deferPromise, sanitizeCSS} from '../core/utilities.js';
+import {getGlossarySelectionText} from '../dom/glossary-selection-text.js';
 import {convertHiraganaToKatakana, convertKatakanaToHiragana} from '../language/ja/japanese.js';
 import {cloneFieldMarkerPattern, getRootDeckName} from './anki-util.js';
 
@@ -501,7 +502,8 @@ export class AnkiNoteBuilder {
      */
     _getPopupSelectionText() {
         const selection = document.getSelection();
-        return selection !== null ? selection.toString() : '';
+        if (selection === null) { return ''; }
+        return getGlossarySelectionText(selection) ?? selection.toString();
     }
 
     /**
