@@ -154,6 +154,25 @@ describe('getGlossarySelectionText', () => {
         expect(getGlossarySelectionText(selection)).toBe('alpha; beta');
     });
 
+    test('skips text hidden inside a closed details element', ({window}) => {
+        const {document} = window;
+        setBody(document, '<ol class="definition-list"><li class="definition-item"><ul class="gloss-list"><li class="gloss-item"><span class="gloss-content"><span class="structured-content">shown<details class="gloss-sc-details"><summary class="gloss-sc-summary">More</summary>hidden note</details>after</span></span></li></ul></li></ol>');
+        const start = findText(document, 'shown');
+        const end = findText(document, 'after');
+        const selection = select(document, start, 0, end, end.length);
+        expect(getGlossarySelectionText(selection)).toBe('shown More after');
+    });
+
+    test('keeps selection order when a meaning recurs after another one', ({window}) => {
+        const {document} = window;
+        const structured = '<li class="gloss-item"><span class="gloss-content"><span class="structured-content"><ul class="gloss-sc-ul" data-sc-content="glossary"><li class="gloss-sc-li">beta</li></ul></span></span></li>';
+        setBody(document, `<ol class="definition-list"><li class="definition-item"><ul class="gloss-list"><li class="gloss-item"><span class="gloss-content">alpha</span></li>${structured}<li class="gloss-item"><span class="gloss-content">gamma</span></li></ul></li></ol>`);
+        const start = findText(document, 'alpha');
+        const end = findText(document, 'gamma');
+        const selection = select(document, start, 0, end, end.length);
+        expect(getGlossarySelectionText(selection)).toBe('alpha; beta; gamma');
+    });
+
     test('returns null when nothing inside a definition is selected', ({window}) => {
         const {document} = window;
         setBody(document, `<div><span class="headword">放課</span><ol class="definition-list">${simpleDefinition(['recess'])}</ol></div>`);

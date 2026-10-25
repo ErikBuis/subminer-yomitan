@@ -17,6 +17,12 @@
 
 const IGNORED_SELECTOR = '.definition-tag-list,.definition-disambiguation-list,.gloss-separator,.expansion-button';
 const GLOSSARY_CONTENT_SELECTOR = '[data-sc-content="glossary"]';
+/**
+ * @typedef {object} MeaningGroup
+ * @property {Element} meaning
+ * @property {Map<Element, string[]>} glosses
+ */
+
 const BLOCK_SELECTOR = 'div,p,table,tr,td,th,details,summary,ul,ol,li';
 
 /**
@@ -29,15 +35,15 @@ const BLOCK_SELECTOR = 'div,p,table,tr,td,th,details,summary,ul,ol,li';
  * @returns {?string} The flattened text, or `null` if the selection contains no definition text.
  */
 export function getGlossarySelectionText(selection) {
-    /** @type {Map<Element, Map<Element, string[]>>} */
-    const meanings = new Map();
+    /** @type {MeaningGroup[]} */
+    const meanings = [];
     for (let i = 0; i < selection.rangeCount; ++i) {
         collectRangeText(selection.getRangeAt(i), meanings);
     }
 
     /** @type {string[]} */
     const meaningTexts = [];
-    for (const glosses of meanings.values()) {
+    for (const {glosses} of meanings) {
         /** @type {string[]} */
         const glossTexts = [];
         for (const parts of glosses.values()) {
@@ -51,7 +57,7 @@ export function getGlossarySelectionText(selection) {
 
 /**
  * @param {Range} range
- * @param {Map<Element, Map<Element, string[]>>} meanings
+ * @param {MeaningGroup[]} meanings
  */
 function collectRangeText(range, meanings) {
     const root = range.commonAncestorContainer;
@@ -84,7 +90,7 @@ function collectRangeText(range, meanings) {
 /**
  * @param {Text} node
  * @param {Range} range
- * @param {Map<Element, Map<Element, string[]>>} meanings
+ * @param {MeaningGroup[]} meanings
  */
 function addTextNode(node, range, meanings) {
     const start = node === range.startContainer ? range.startOffset : 0;
@@ -97,13 +103,16 @@ function addTextNode(node, range, meanings) {
 /**
  * @param {?Element} parent
  * @param {string} text
- * @param {Map<Element, Map<Element, string[]>>} meanings
+ * @param {MeaningGroup[]} meanings
  */
 function addPart(parent, text, meanings) {
     if (parent === null || parent.closest(IGNORED_SELECTOR) !== null) { return; }
     const definitionItem = parent.closest('.definition-item');
     if (definitionItem === null) { return; }
     if (typeof parent.checkVisibility === 'function' && !parent.checkVisibility()) { return; }
+    // checkVisibility() does not catch text placed directly inside a closed <details>.
+    const details = parent.closest('details');
+    if (details !== null && !details.hasAttribute('open') && parent.closest('summary')?.parentElement !== details) { return; }
     // Structured content that marks its glossaries (e.g. Jitendex) also holds labels, notes and
     // examples next to them; only the marked glossary text is a meaning.
     const entry = parent.closest('.gloss-item') ?? definitionItem;
@@ -132,11 +141,18 @@ function addPart(parent, text, meanings) {
     if (gloss === null) { return; }
     if (meaning === null) { meaning = gloss; }
 
-    let glosses = meanings.get(meaning);
-    if (typeof glosses === 'undefined') {
-        glosses = new Map();
-        meanings.set(meaning, glosses);
+    // A meaning revisited after another one starts a new group, so the export keeps selection order.
+    let group = meanings.length > 0 ? meanings[meanings.length - 1] : null;
+    const isWhitespace = text.trim().length === 0;
+    if (isWhitespace && (group === null || group.meaning !== meaning || !group.glosses.has(gloss))) {
+        // Whitespace between list items only spaces words within a gloss; it must not split groups.
+        return;
     }
+    if (group === null || group.meaning !== meaning) {
+        group = {meaning, glosses: new Map()};
+        meanings.push(group);
+    }
+    const {glosses} = group;
     const parts = glosses.get(gloss);
     if (typeof parts === 'undefined') {
         glosses.set(gloss, [text]);
