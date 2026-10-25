@@ -108,6 +108,12 @@ export type MediaOptions = {
         optionsContext: Settings.OptionsContext;
         scanLength: number;
     };
+    popupSelection?: PopupSelectionSeparators | null;
+};
+
+export type PopupSelectionSeparators = {
+    sense: string;
+    gloss: string;
 };
 
 export type TextFuriganaDetails = {

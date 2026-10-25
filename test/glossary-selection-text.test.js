@@ -21,6 +21,8 @@ import {createDomTest} from './fixtures/dom-test.js';
 
 const test = createDomTest();
 
+const separators = {sense: '; ', gloss: ', '};
+
 /**
  * @param {string[]} glosses
  * @returns {string}
@@ -78,7 +80,7 @@ describe('getGlossarySelectionText', () => {
         const start = findText(document, 'dismissal of class (at the end of the day)');
         const end = findText(document, 'break');
         const selection = select(document, start, 0, end, end.length);
-        expect(getGlossarySelectionText(selection)).toBe('dismissal of class (at the end of the day); recess (at school), break');
+        expect(getGlossarySelectionText(selection, separators)).toBe('dismissal of class (at the end of the day); recess (at school), break');
     });
 
     test('keeps partial selections and skips tags inside the range', ({window}) => {
@@ -87,7 +89,7 @@ describe('getGlossarySelectionText', () => {
         const start = findText(document, 'alpha two');
         const end = findText(document, 'beta one');
         const selection = select(document, start, 6, end, 4);
-        expect(getGlossarySelectionText(selection)).toBe('two; beta');
+        expect(getGlossarySelectionText(selection, separators)).toBe('two; beta');
     });
 
     test('handles a selection inside a single text node', ({window}) => {
@@ -95,7 +97,7 @@ describe('getGlossarySelectionText', () => {
         setBody(document, `<ol class="definition-list">${simpleDefinition(['recess (at school)'])}</ol>`);
         const node = findText(document, 'recess (at school)');
         const selection = select(document, node, 0, node, 6);
-        expect(getGlossarySelectionText(selection)).toBe('recess');
+        expect(getGlossarySelectionText(selection, separators)).toBe('recess');
     });
 
     test('groups structured content glosses by their sense', ({window}) => {
@@ -105,7 +107,7 @@ describe('getGlossarySelectionText', () => {
         const start = findText(document, 'to eat');
         const end = findText(document, 'to subsist on');
         const selection = select(document, start, 0, end, end.length);
-        expect(getGlossarySelectionText(selection)).toBe('to eat; to live on, to subsist on');
+        expect(getGlossarySelectionText(selection, separators)).toBe('to eat; to live on, to subsist on');
     });
 
     test('keeps word boundaries at line breaks of multiline glosses', ({window}) => {
@@ -114,7 +116,7 @@ describe('getGlossarySelectionText', () => {
         const start = findText(document, 'first line');
         const end = findText(document, 'other');
         const selection = select(document, start, 0, end, end.length);
-        expect(getGlossarySelectionText(selection)).toBe('first line second line, other');
+        expect(getGlossarySelectionText(selection, separators)).toBe('first line second line, other');
     });
 
     test('skips labels next to marked structured content glossaries', ({window}) => {
@@ -124,7 +126,7 @@ describe('getGlossarySelectionText', () => {
         const start = findText(document, 'noun');
         const end = findText(document, 'break');
         const selection = select(document, start, 0, end, end.length);
-        expect(getGlossarySelectionText(selection)).toBe('dismissal of class; recess, break');
+        expect(getGlossarySelectionText(selection, separators)).toBe('dismissal of class; recess, break');
     });
 
     test('keeps word boundaries between block elements', ({window}) => {
@@ -133,7 +135,7 @@ describe('getGlossarySelectionText', () => {
         const start = findText(document, 'first');
         const end = findText(document, 'second');
         const selection = select(document, start, 0, end, end.length);
-        expect(getGlossarySelectionText(selection)).toBe('first second');
+        expect(getGlossarySelectionText(selection, separators)).toBe('first second');
     });
 
     test('keeps word boundaries between a block element and following inline text', ({window}) => {
@@ -142,7 +144,7 @@ describe('getGlossarySelectionText', () => {
         const start = findText(document, 'first');
         const end = findText(document, 'ond');
         const selection = select(document, start, 0, end, end.length);
-        expect(getGlossarySelectionText(selection)).toBe('first second');
+        expect(getGlossarySelectionText(selection, separators)).toBe('first second');
     });
 
     test('keeps plain entries next to a structured entry with marked glossaries', ({window}) => {
@@ -151,7 +153,7 @@ describe('getGlossarySelectionText', () => {
         const start = findText(document, 'alpha');
         const end = findText(document, 'beta');
         const selection = select(document, start, 0, end, end.length);
-        expect(getGlossarySelectionText(selection)).toBe('alpha; beta');
+        expect(getGlossarySelectionText(selection, separators)).toBe('alpha; beta');
     });
 
     test('skips text hidden inside a closed details element', ({window}) => {
@@ -160,7 +162,7 @@ describe('getGlossarySelectionText', () => {
         const start = findText(document, 'shown');
         const end = findText(document, 'after');
         const selection = select(document, start, 0, end, end.length);
-        expect(getGlossarySelectionText(selection)).toBe('shown More after');
+        expect(getGlossarySelectionText(selection, separators)).toBe('shown More after');
     });
 
     test('keeps selection order when a meaning recurs after another one', ({window}) => {
@@ -170,7 +172,16 @@ describe('getGlossarySelectionText', () => {
         const start = findText(document, 'alpha');
         const end = findText(document, 'gamma');
         const selection = select(document, start, 0, end, end.length);
-        expect(getGlossarySelectionText(selection)).toBe('alpha; beta; gamma');
+        expect(getGlossarySelectionText(selection, separators)).toBe('alpha; beta; gamma');
+    });
+
+    test('uses the configured separators', ({window}) => {
+        const {document} = window;
+        setBody(document, `<ol class="definition-list">${simpleDefinition(['one'])}${simpleDefinition(['two', 'three'])}</ol>`);
+        const start = findText(document, 'one');
+        const end = findText(document, 'three');
+        const selection = select(document, start, 0, end, end.length);
+        expect(getGlossarySelectionText(selection, {sense: ' / ', gloss: ' | '})).toBe('one / two | three');
     });
 
     test('returns null when nothing inside a definition is selected', ({window}) => {
@@ -178,6 +189,6 @@ describe('getGlossarySelectionText', () => {
         setBody(document, `<div><span class="headword">放課</span><ol class="definition-list">${simpleDefinition(['recess'])}</ol></div>`);
         const node = findText(document, '放課');
         const selection = select(document, node, 0, node, node.length);
-        expect(getGlossarySelectionText(selection)).toBeNull();
+        expect(getGlossarySelectionText(selection, separators)).toBeNull();
     });
 });

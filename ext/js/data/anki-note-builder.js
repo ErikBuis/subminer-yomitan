@@ -461,7 +461,7 @@ export class AnkiNoteBuilder {
         }
 
         // Inject media
-        const popupSelectionText = injectPopupSelectionText ? this._getPopupSelectionText() : null;
+        const popupSelectionText = injectPopupSelectionText ? this._getPopupSelectionText(mediaOptions.popupSelection ?? null) : null;
         const injectedMedia = await this._api.injectAnkiNoteMedia(
             timestamp,
             dictionaryEntryDetails,
@@ -498,12 +498,13 @@ export class AnkiNoteBuilder {
     }
 
     /**
+     * @param {?import('anki-note-builder').PopupSelectionSeparators} separators When set, selected glossary text is flattened onto one line.
      * @returns {string}
      */
-    _getPopupSelectionText() {
+    _getPopupSelectionText(separators) {
         const selection = document.getSelection();
         if (selection === null) { return ''; }
-        return getGlossarySelectionText(selection) ?? selection.toString();
+        return (separators !== null ? getGlossarySelectionText(selection, separators) : null) ?? selection.toString();
     }
 
     /**

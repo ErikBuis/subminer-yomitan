@@ -27,14 +27,15 @@ const BLOCK_SELECTOR = 'div,p,table,tr,td,th,details,summary,ul,ol,li';
 
 /**
  * Flattens a selection inside dictionary definitions into a single line.
- * Glosses of the same meaning are joined with ", " and separate meanings with "; ".
+ * Glosses of the same meaning are joined with `separators.gloss` and separate meanings with `separators.sense`.
  * A gloss is the innermost list item around the text; its meaning is the next list item up,
  * which covers both simple glossaries (gloss-item inside definition-item) and structured content
  * (glossary list items nested inside sense list items).
  * @param {Selection} selection
+ * @param {import('anki-note-builder').PopupSelectionSeparators} separators
  * @returns {?string} The flattened text, or `null` if the selection contains no definition text.
  */
-export function getGlossarySelectionText(selection) {
+export function getGlossarySelectionText(selection, separators) {
     /** @type {MeaningGroup[]} */
     const meanings = [];
     for (let i = 0; i < selection.rangeCount; ++i) {
@@ -50,9 +51,9 @@ export function getGlossarySelectionText(selection) {
             const text = parts.join('').replace(/\s+/g, ' ').trim();
             if (text.length > 0) { glossTexts.push(text); }
         }
-        if (glossTexts.length > 0) { meaningTexts.push(glossTexts.join(', ')); }
+        if (glossTexts.length > 0) { meaningTexts.push(glossTexts.join(separators.gloss)); }
     }
-    return meaningTexts.length > 0 ? meaningTexts.join('; ') : null;
+    return meaningTexts.length > 0 ? meaningTexts.join(separators.sense) : null;
 }
 
 /**
