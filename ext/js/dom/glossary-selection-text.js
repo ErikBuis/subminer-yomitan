@@ -17,6 +17,7 @@
 
 const IGNORED_SELECTOR = '.definition-tag-list,.definition-disambiguation-list,.gloss-separator,.expansion-button';
 const GLOSSARY_CONTENT_SELECTOR = '[data-sc-content="glossary"]';
+const BOUNDARY_TAG_NAMES = new Set(['BR', 'DIV', 'P', 'TABLE', 'TR', 'TD', 'TH', 'DETAILS', 'SUMMARY', 'UL', 'OL', 'LI']);
 
 /**
  * Flattens a selection inside dictionary definitions into a single line.
@@ -65,9 +66,10 @@ function collectRangeText(range, meanings) {
         if (!range.intersectsNode(node)) { continue; }
         if (node.nodeType === Node.TEXT_NODE) {
             addTextNode(/** @type {Text} */ (node), range, meanings);
-        } else if (/** @type {Element} */ (node).tagName === 'BR') {
-            // Multiline glosses are rendered with <br>, so keep the word boundary.
-            addPart(/** @type {Element} */ (node).parentElement, ' ', meanings);
+        } else if (BOUNDARY_TAG_NAMES.has(/** @type {Element} */ (node).tagName)) {
+            // Line breaks and block elements separate words without containing whitespace text.
+            const element = /** @type {Element} */ (node);
+            addPart(element.tagName === 'BR' ? element.parentElement : element, ' ', meanings);
         }
     }
 }
@@ -97,8 +99,9 @@ function addPart(parent, text, meanings) {
     if (typeof parent.checkVisibility === 'function' && !parent.checkVisibility()) { return; }
     // Structured content that marks its glossaries (e.g. Jitendex) also holds labels, notes and
     // examples next to them; only the marked glossary text is a meaning.
+    const entry = parent.closest('.gloss-item') ?? definitionItem;
     if (
-        definitionItem.querySelector(GLOSSARY_CONTENT_SELECTOR) !== null &&
+        entry.querySelector(GLOSSARY_CONTENT_SELECTOR) !== null &&
         parent.closest(GLOSSARY_CONTENT_SELECTOR) === null
     ) {
         return;
