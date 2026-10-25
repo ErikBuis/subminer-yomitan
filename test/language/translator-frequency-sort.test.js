@@ -24,7 +24,7 @@ const frequencyDictionaryA = 'Frequency A';
 const frequencyDictionaryB = 'Frequency B';
 const occurrenceDictionary = 'Occurrence Frequency';
 
-/** @type {Record<string, Record<string, import('dictionary-data').GenericFrequencyData>>} */
+/** @type {Record<string, Record<string, import('dictionary-data').GenericFrequencyData|import('dictionary-data').GenericFrequencyData[]>>} */
 const frequencyData = {
     [frequencyDictionaryA]: {あ: 100, い: 200, う: 300},
     [frequencyDictionaryB]: {あ: 90000, い: 150},
@@ -81,7 +81,9 @@ async function findTermMetaBulk(termList, dictionaries) {
         for (const dictionary of dictionaries.keys()) {
             const frequency = frequencyData[dictionary]?.[term];
             if (typeof frequency === 'undefined') { continue; }
-            metas.push({index, term, mode: 'freq', data: frequency, dictionary});
+            for (const data of (Array.isArray(frequency) ? frequency : [frequency])) {
+                metas.push({index, term, mode: 'freq', data, dictionary});
+            }
         }
     }
     return metas;
@@ -166,6 +168,19 @@ describe('Translator frequency sorting', () => {
     test('average sorting in occurrence mode only uses occurrence-based dictionaries', async () => {
         const terms = await findSortedTerms('simple', SORT_FREQUENCY_DICTIONARY_AVERAGE, 'descending', [frequencyDictionaryA, frequencyDictionaryB, occurrenceDictionary]);
         expect(terms[0]).toBe('う');
+    });
+
+    test('average only uses the first value of each dictionary like the Average frequency tag', async () => {
+        const original = frequencyData[frequencyDictionaryA];
+        frequencyData[frequencyDictionaryA] = {あ: [0, 10], い: 50, う: 300};
+        try {
+            // Frequency A's first value for あ is 0, so like the Average tag it contributes nothing.
+            // Harmonic means: あ = 90000 (Frequency B only), い = floor(2 / (1/50 + 1/150)) = 75, う = 300.
+            const terms = await findSortedTerms('simple', SORT_FREQUENCY_DICTIONARY_AVERAGE, 'ascending', [frequencyDictionaryA, frequencyDictionaryB]);
+            expect(terms).toStrictEqual(['い', 'う', 'あ']);
+        } finally {
+            frequencyData[frequencyDictionaryA] = original;
+        }
     });
 
     test('average uses the leading number of the display value like the Average frequency tag', async () => {

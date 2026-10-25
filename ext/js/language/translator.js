@@ -2431,23 +2431,27 @@ export class Translator {
         for (const {headwordIndex, dictionary, frequency, displayValue, frequencyMode} of frequencies) {
             if (frequencyMode === excludedFrequencyMode) { continue; }
             const value = this._getAverageFrequencyValue(frequency, displayValue);
-            if (value <= 0) { continue; }
             let dictionaryFrequencies = headwordDictionaryFrequencies.get(headwordIndex);
             if (typeof dictionaryFrequencies === 'undefined') {
                 dictionaryFrequencies = new Map();
                 headwordDictionaryFrequencies.set(headwordIndex, dictionaryFrequencies);
             }
-            // Like the "Average" badge, only the first value of each dictionary is used.
+            // Like the "Average" badge, only the first value of each dictionary is used, even if it is not positive.
             if (!dictionaryFrequencies.has(dictionary)) {
                 dictionaryFrequencies.set(dictionary, value);
             }
         }
         for (const [headwordIndex, dictionaryFrequencies] of headwordDictionaryFrequencies) {
+            let count = 0;
             let total = 0;
             for (const value of dictionaryFrequencies.values()) {
+                if (value <= 0) { continue; }
+                ++count;
                 total += 1 / value;
             }
-            frequencyMap.set(headwordIndex, Math.floor(dictionaryFrequencies.size / total));
+            if (count > 0) {
+                frequencyMap.set(headwordIndex, Math.floor(count / total));
+            }
         }
     }
 
