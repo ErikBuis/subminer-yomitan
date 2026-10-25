@@ -108,6 +108,25 @@ describe('getGlossarySelectionText', () => {
         expect(getGlossarySelectionText(selection)).toBe('to eat; to live on, to subsist on');
     });
 
+    test('keeps word boundaries at line breaks of multiline glosses', ({window}) => {
+        const {document} = window;
+        setBody(document, '<ol class="definition-list"><li class="definition-item"><ul class="gloss-list"><li class="gloss-item"><span class="gloss-content">first line<br>second line</span></li><li class="gloss-item"><span class="gloss-content">other</span></li></ul></li></ol>');
+        const start = findText(document, 'first line');
+        const end = findText(document, 'other');
+        const selection = select(document, start, 0, end, end.length);
+        expect(getGlossarySelectionText(selection)).toBe('first line second line, other');
+    });
+
+    test('skips labels next to marked structured content glossaries', ({window}) => {
+        const {document} = window;
+        const sense = (/** @type {string} */ label, /** @type {string[]} */ glosses) => `<li class="gloss-sc-li" data-sc-content="sense"><span class="gloss-sc-span" data-sc-content="part-of-speech-info">${label}</span><ul class="gloss-sc-ul" data-sc-content="glossary">${glosses.map((gloss) => `<li class="gloss-sc-li">${gloss}</li>`).join('')}</ul></li>`;
+        setBody(document, `<ol class="definition-list"><li class="definition-item"><ul class="gloss-list"><li class="gloss-item"><span class="gloss-content"><span class="structured-content"><ol class="gloss-sc-ol">${sense('noun', ['dismissal of class'])}${sense('noun', ['recess', 'break'])}</ol></span></span></li></ul></li></ol>`);
+        const start = findText(document, 'noun');
+        const end = findText(document, 'break');
+        const selection = select(document, start, 0, end, end.length);
+        expect(getGlossarySelectionText(selection)).toBe('dismissal of class; recess, break');
+    });
+
     test('returns null when nothing inside a definition is selected', ({window}) => {
         const {document} = window;
         setBody(document, `<div><span class="headword">放課</span><ol class="definition-list">${simpleDefinition(['recess'])}</ol></div>`);

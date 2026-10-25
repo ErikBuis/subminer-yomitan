@@ -16,6 +16,7 @@
  */
 
 const IGNORED_SELECTOR = '.definition-tag-list,.definition-disambiguation-list,.gloss-separator,.expansion-button';
+const GLOSSARY_CONTENT_SELECTOR = '[data-sc-content="glossary"]';
 
 /**
  * Flattens a selection inside dictionary definitions into a single line.
@@ -59,10 +60,14 @@ function collectRangeText(range, meanings) {
     }
     const document = root.ownerDocument;
     if (document === null) { return; }
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
     for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-        if (range.intersectsNode(node)) {
+        if (!range.intersectsNode(node)) { continue; }
+        if (node.nodeType === Node.TEXT_NODE) {
             addTextNode(/** @type {Text} */ (node), range, meanings);
+        } else if (/** @type {Element} */ (node).tagName === 'BR') {
+            // Multiline glosses are rendered with <br>, so keep the word boundary.
+            addPart(/** @type {Element} */ (node).parentElement, ' ', meanings);
         }
     }
 }
@@ -73,11 +78,31 @@ function collectRangeText(range, meanings) {
  * @param {Map<Element, Map<Element, string[]>>} meanings
  */
 function addTextNode(node, range, meanings) {
-    const parent = node.parentElement;
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end = node === range.endContainer ? range.endOffset : node.length;
+    const text = node.data.substring(start, end);
+    if (text.length === 0) { return; }
+    addPart(node.parentElement, text, meanings);
+}
+
+/**
+ * @param {?Element} parent
+ * @param {string} text
+ * @param {Map<Element, Map<Element, string[]>>} meanings
+ */
+function addPart(parent, text, meanings) {
     if (parent === null || parent.closest(IGNORED_SELECTOR) !== null) { return; }
     const definitionItem = parent.closest('.definition-item');
     if (definitionItem === null) { return; }
     if (typeof parent.checkVisibility === 'function' && !parent.checkVisibility()) { return; }
+    // Structured content that marks its glossaries (e.g. Jitendex) also holds labels, notes and
+    // examples next to them; only the marked glossary text is a meaning.
+    if (
+        definitionItem.querySelector(GLOSSARY_CONTENT_SELECTOR) !== null &&
+        parent.closest(GLOSSARY_CONTENT_SELECTOR) === null
+    ) {
+        return;
+    }
 
     /** @type {?Element} */
     let gloss = null;
@@ -96,11 +121,6 @@ function addTextNode(node, range, meanings) {
     }
     if (gloss === null) { return; }
     if (meaning === null) { meaning = gloss; }
-
-    const start = node === range.startContainer ? range.startOffset : 0;
-    const end = node === range.endContainer ? range.endOffset : node.length;
-    const text = node.data.substring(start, end);
-    if (text.length === 0) { return; }
 
     let glosses = meanings.get(meaning);
     if (typeof glosses === 'undefined') {
