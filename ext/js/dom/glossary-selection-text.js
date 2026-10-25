@@ -81,9 +81,12 @@ function collectRangeText(range, meanings) {
             }
             previousBlock = block;
             addTextNode(/** @type {Text} */ (node), range, meanings);
-        } else if (/** @type {Element} */ (node).tagName === 'BR') {
-            // Multiline glosses are rendered with <br>, so keep the word boundary.
-            addPart(/** @type {Element} */ (node).parentElement, ' ', meanings);
+        } else {
+            const element = /** @type {Element} */ (node);
+            // <br> and blocks without text (empty or image-only) separate words but contain no text node.
+            if (element.tagName === 'BR' || (element.matches(BLOCK_SELECTOR) && (element.textContent ?? '').trim().length === 0)) {
+                addPart(element.parentElement, ' ', meanings);
+            }
         }
     }
 }
