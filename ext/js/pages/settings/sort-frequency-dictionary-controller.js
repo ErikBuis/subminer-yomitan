@@ -159,7 +159,8 @@ export class SortFrequencyDictionaryController {
     async _getFrequencyOrder(dictionary) {
         const dictionaryInfo = await this._settingsController.application.api.getDictionaryInfo();
         if (dictionary === SORT_FREQUENCY_DICTIONARY_AVERAGE) {
-            return this._getAverageFrequencyOrder(dictionaryInfo);
+            const options = await this._settingsController.getOptions();
+            return this._getAverageFrequencyOrder(dictionaryInfo, options.dictionaries);
         }
         const dictionaryFrequencyMode = dictionaryInfo.find(({title}) => title === dictionary)?.frequencyMode ?? '';
         switch (dictionaryFrequencyMode) {
@@ -244,14 +245,20 @@ export class SortFrequencyDictionaryController {
     }
 
     /**
-     * The average is a harmonic mean of ranks, so rank-based is used unless every frequency
-     * dictionary with a declared mode is occurrence-based.
+     * The average is a harmonic mean of ranks, so rank-based is used unless every enabled
+     * frequency dictionary with a declared mode is occurrence-based.
      * @param {import('dictionary-importer').Summary[]} dictionaryInfo
+     * @param {import('settings').DictionariesOptions} dictionaryOptions
      * @returns {import('settings').SortFrequencyDictionaryOrder}
      */
-    _getAverageFrequencyOrder(dictionaryInfo) {
+    _getAverageFrequencyOrder(dictionaryInfo, dictionaryOptions) {
+        const enabledDictionaries = new Set();
+        for (const {name, enabled} of dictionaryOptions) {
+            if (enabled) { enabledDictionaries.add(name); }
+        }
         let hasOccurrenceBased = false;
-        for (const {counts, frequencyMode} of dictionaryInfo) {
+        for (const {title, counts, frequencyMode} of dictionaryInfo) {
+            if (!enabledDictionaries.has(title)) { continue; }
             if (!(counts && counts.termMeta && counts.termMeta.freq > 0)) { continue; }
             if (frequencyMode === 'rank-based') { return 'ascending'; }
             if (frequencyMode === 'occurrence-based') { hasOccurrenceBased = true; }
