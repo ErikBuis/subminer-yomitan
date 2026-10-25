@@ -17,7 +17,7 @@
 
 const IGNORED_SELECTOR = '.definition-tag-list,.definition-disambiguation-list,.gloss-separator,.expansion-button';
 const GLOSSARY_CONTENT_SELECTOR = '[data-sc-content="glossary"]';
-const BOUNDARY_TAG_NAMES = new Set(['BR', 'DIV', 'P', 'TABLE', 'TR', 'TD', 'TH', 'DETAILS', 'SUMMARY', 'UL', 'OL', 'LI']);
+const BLOCK_SELECTOR = 'div,p,table,tr,td,th,details,summary,ul,ol,li';
 
 /**
  * Flattens a selection inside dictionary definitions into a single line.
@@ -62,14 +62,21 @@ function collectRangeText(range, meanings) {
     const document = root.ownerDocument;
     if (document === null) { return; }
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+    /** @type {?Element|undefined} */
+    let previousBlock = void 0;
     for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
         if (!range.intersectsNode(node)) { continue; }
         if (node.nodeType === Node.TEXT_NODE) {
+            // Entering or leaving a block element separates words without any whitespace text.
+            const block = node.parentElement?.closest(BLOCK_SELECTOR) ?? null;
+            if (typeof previousBlock !== 'undefined' && block !== previousBlock) {
+                addPart(node.parentElement, ' ', meanings);
+            }
+            previousBlock = block;
             addTextNode(/** @type {Text} */ (node), range, meanings);
-        } else if (BOUNDARY_TAG_NAMES.has(/** @type {Element} */ (node).tagName)) {
-            // Line breaks and block elements separate words without containing whitespace text.
-            const element = /** @type {Element} */ (node);
-            addPart(element.tagName === 'BR' ? element.parentElement : element, ' ', meanings);
+        } else if (/** @type {Element} */ (node).tagName === 'BR') {
+            // Multiline glosses are rendered with <br>, so keep the word boundary.
+            addPart(/** @type {Element} */ (node).parentElement, ' ', meanings);
         }
     }
 }

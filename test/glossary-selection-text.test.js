@@ -136,6 +136,15 @@ describe('getGlossarySelectionText', () => {
         expect(getGlossarySelectionText(selection)).toBe('first second');
     });
 
+    test('keeps word boundaries between a block element and following inline text', ({window}) => {
+        const {document} = window;
+        setBody(document, '<ol class="definition-list"><li class="definition-item"><ul class="gloss-list"><li class="gloss-item"><span class="gloss-content"><span class="structured-content"><div class="gloss-sc-div">first</div><span class="gloss-sc-span">sec</span><span class="gloss-sc-span">ond</span></span></span></li></ul></li></ol>');
+        const start = findText(document, 'first');
+        const end = findText(document, 'ond');
+        const selection = select(document, start, 0, end, end.length);
+        expect(getGlossarySelectionText(selection)).toBe('first second');
+    });
+
     test('keeps plain entries next to a structured entry with marked glossaries', ({window}) => {
         const {document} = window;
         setBody(document, '<ol class="definition-list"><li class="definition-item"><ul class="gloss-list"><li class="gloss-item"><span class="gloss-content">alpha</span></li><li class="gloss-item"><span class="gloss-content"><span class="structured-content"><span class="gloss-sc-span" data-sc-content="part-of-speech-info">noun</span><ul class="gloss-sc-ul" data-sc-content="glossary"><li class="gloss-sc-li">beta</li></ul></span></span></li></ul></li></ol>');
