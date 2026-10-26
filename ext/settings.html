@@ -2086,6 +2086,36 @@
                 </p>
             </div>
         </div>
+        <div class="settings-item"><div class="settings-item-inner">
+            <div class="settings-item-left">
+                <div class="settings-item-label">Join selected definitions on one line</div>
+                <div class="settings-item-description">
+                    When text selected in the popup covers definitions, <code>{popup-selection-text}</code> joins them with the separators below instead of newlines.
+                    Tags and labels next to the definitions are left out.
+                </div>
+            </div>
+            <div class="settings-item-right">
+                <label class="toggle"><input type="checkbox" data-setting="anki.flattenPopupSelection"><span class="toggle-body"><span class="toggle-track"></span><span class="toggle-knob"></span></span></label>
+            </div>
+        </div></div>
+        <div class="settings-item"><div class="settings-item-inner settings-item-inner-wrappable">
+            <div class="settings-item-left">
+                <div class="settings-item-label">Separator between meanings</div>
+                <div class="settings-item-description">Placed between separate senses or definitions in the joined selection.</div>
+            </div>
+            <div class="settings-item-right">
+                <input type="text" class="short-width" spellcheck="false" autocomplete="off" data-setting="anki.popupSelectionSenseSeparator">
+            </div>
+        </div></div>
+        <div class="settings-item"><div class="settings-item-inner settings-item-inner-wrappable">
+            <div class="settings-item-left">
+                <div class="settings-item-label">Separator between synonyms</div>
+                <div class="settings-item-description">Placed between glosses of the same sense in the joined selection.</div>
+            </div>
+            <div class="settings-item-right">
+                <input type="text" class="short-width" spellcheck="false" autocomplete="off" data-setting="anki.popupSelectionGlossSeparator">
+            </div>
+        </div></div>
         <div class="settings-item advanced-only"><div class="settings-item-inner">
             <div class="settings-item-left">
                 <div class="settings-item-label">Suspend new cards</div>

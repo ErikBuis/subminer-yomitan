@@ -551,6 +551,9 @@ function createProfileOptionsUpdatedTestData1() {
             downloadTimeout: 0,
             forceSync: false,
             noteDupeCheckFirst: false,
+            flattenPopupSelection: false,
+            popupSelectionSenseSeparator: '; ',
+            popupSelectionGlossSeparator: ', ',
         },
         sentenceParsing: {
             scanExtent: 200,

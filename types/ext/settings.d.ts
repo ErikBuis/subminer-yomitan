@@ -317,6 +317,9 @@ export type AnkiOptions = {
     downloadTimeout: number;
     forceSync: boolean;
     noteDupeCheckFirst: boolean;
+    flattenPopupSelection: boolean;
+    popupSelectionSenseSeparator: string;
+    popupSelectionGlossSeparator: string;
 };
 
 export type AnkiScreenshotOptions = {

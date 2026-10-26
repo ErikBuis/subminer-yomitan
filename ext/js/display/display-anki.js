@@ -116,6 +116,8 @@ export class DisplayAnki {
         this._forceSync = false;
         /** @type {boolean} */
         this.__noteDupeCheckFirst = false;
+        /** @type {?import('anki-note-builder').PopupSelectionSeparators} */
+        this._popupSelectionSeparators = null;
     }
 
     /** */
@@ -327,6 +329,9 @@ export class DisplayAnki {
                 downloadTimeout,
                 forceSync,
                 noteDupeCheckFirst,
+                flattenPopupSelection,
+                popupSelectionSenseSeparator,
+                popupSelectionGlossSeparator,
             },
             scanning: {length: scanLength},
         } = options;
@@ -351,6 +356,9 @@ export class DisplayAnki {
         this._dictionaries = dictionaries;
         this._forceSync = forceSync;
         this._noteDupeCheckFirst = noteDupeCheckFirst;
+        this._popupSelectionSeparators = flattenPopupSelection ?
+            {sense: popupSelectionSenseSeparator, gloss: popupSelectionGlossSeparator} :
+            null;
 
         void this._updateAnkiFieldTemplates(options);
     }
@@ -1390,6 +1398,7 @@ export class DisplayAnki {
                     optionsContext,
                     scanLength: this._scanLength,
                 },
+                popupSelection: this._popupSelectionSeparators,
             },
             requirements,
             dictionaryStylesMap,
