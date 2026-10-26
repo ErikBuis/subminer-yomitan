@@ -193,6 +193,15 @@ describe('getGlossarySelectionText', () => {
         expect(getGlossarySelectionText(selection, {sense: ' / ', gloss: ' | '})).toBe('one / two | three');
     });
 
+    test('joins selected kanji meanings', ({window}) => {
+        const {document} = window;
+        setBody(document, '<ol class="kanji-gloss-list"><li class="kanji-gloss-item"><span class="kanji-gloss-content">release</span></li><li class="kanji-gloss-item"><span class="kanji-gloss-content">free</span></li></ol>');
+        const start = findText(document, 'release');
+        const end = findText(document, 'free');
+        const selection = select(document, start, 0, end, end.length);
+        expect(getGlossarySelectionText(selection, separators)).toBe('release; free');
+    });
+
     test('returns null when nothing inside a definition is selected', ({window}) => {
         const {document} = window;
         setBody(document, `<div><span class="headword">放課</span><ol class="definition-list">${simpleDefinition(['recess'])}</ol></div>`);

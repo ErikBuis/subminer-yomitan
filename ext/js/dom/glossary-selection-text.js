@@ -111,7 +111,8 @@ function addTextNode(node, range, meanings) {
  */
 function addPart(parent, text, meanings) {
     if (parent === null || parent.closest(IGNORED_SELECTOR) !== null) { return; }
-    const definitionItem = parent.closest('.definition-item');
+    // Kanji entries list their meanings as items of .kanji-gloss-list instead of term definition items.
+    const definitionItem = parent.closest('.definition-item,.kanji-gloss-list');
     if (definitionItem === null) { return; }
     if (typeof parent.checkVisibility === 'function' && !parent.checkVisibility()) { return; }
     // checkVisibility() does not catch text placed directly inside a closed <details>.
