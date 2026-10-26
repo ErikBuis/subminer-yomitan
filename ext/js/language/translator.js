@@ -18,6 +18,7 @@
 
 import {safePerformance} from '../core/safe-performance.js';
 import {applyTextReplacement} from '../general/regex-util.js';
+import {SORT_FREQUENCY_DICTIONARY_AVERAGE} from './frequency-sort.js';
 import {isCodePointJapanese} from './ja/japanese.js';
 import {isCodePointKorean} from './ko/korean.js';
 import {LanguageTransformer} from './language-transformer.js';
@@ -111,7 +112,9 @@ export class Translator {
             await this._addTermMeta(dictionaryEntries, enabledDictionaryMap, tagAggregator);
             await this._expandTagGroupsAndGroup(tagAggregator.getTagExpansionTargets());
         } else {
-            if (sortFrequencyDictionary !== null) {
+            if (sortFrequencyDictionary === SORT_FREQUENCY_DICTIONARY_AVERAGE) {
+                await this._addTermMeta(dictionaryEntries, enabledDictionaryMap, tagAggregator);
+            } else if (sortFrequencyDictionary !== null) {
                 /** @type {import('translation').TermEnabledDictionaryMap} */
                 const sortDictionaryMap = new Map();
                 const value = enabledDictionaryMap.get(sortFrequencyDictionary);
@@ -2361,23 +2364,32 @@ export class Translator {
 
     /**
      * @param {import('translation-internal').TermDictionaryEntry[]} dictionaryEntries
-     * @param {string} dictionary
+     * @param {string} dictionary The sort dictionary, or `SORT_FREQUENCY_DICTIONARY_AVERAGE`.
      * @param {boolean} ascending
      */
     _updateSortFrequencies(dictionaryEntries, dictionary, ascending) {
+        const average = (dictionary === SORT_FREQUENCY_DICTIONARY_AVERAGE);
         /** @type {Map<number, number>} */
         const frequencyMap = new Map();
         for (const dictionaryEntry of dictionaryEntries) {
             const {definitions, frequencies} = dictionaryEntry;
             let frequencyMin = Number.MAX_SAFE_INTEGER;
             let frequencyMax = Number.MIN_SAFE_INTEGER;
-            for (const item of frequencies) {
-                if (item.dictionary !== dictionary) { continue; }
-                const {headwordIndex, frequency} = item;
-                if (typeof frequency !== 'number') { continue; }
-                frequencyMap.set(headwordIndex, frequency);
-                frequencyMin = Math.min(frequencyMin, frequency);
-                frequencyMax = Math.max(frequencyMax, frequency);
+            if (average) {
+                this._getAverageSortFrequencies(frequencies, ascending, frequencyMap);
+                for (const frequency of frequencyMap.values()) {
+                    frequencyMin = Math.min(frequencyMin, frequency);
+                    frequencyMax = Math.max(frequencyMax, frequency);
+                }
+            } else {
+                for (const item of frequencies) {
+                    if (item.dictionary !== dictionary) { continue; }
+                    const {headwordIndex, frequency} = item;
+                    if (typeof frequency !== 'number') { continue; }
+                    frequencyMap.set(headwordIndex, frequency);
+                    frequencyMin = Math.min(frequencyMin, frequency);
+                    frequencyMax = Math.max(frequencyMax, frequency);
+                }
             }
             dictionaryEntry.frequencyOrder = (
                 frequencyMin <= frequencyMax ?
@@ -2402,6 +2414,63 @@ export class Translator {
             }
             frequencyMap.clear();
         }
+    }
+
+    /**
+     * Computes the harmonic mean frequency of each headword across all frequency dictionaries,
+     * matching the "Average" frequency badge. Dictionaries whose declared frequency mode
+     * contradicts the sort order (e.g. occurrence-based when sorting by rank) are skipped.
+     * @param {import('dictionary').TermFrequency[]} frequencies
+     * @param {boolean} ascending
+     * @param {Map<number, number>} frequencyMap Output map of headword index to average frequency.
+     */
+    _getAverageSortFrequencies(frequencies, ascending, frequencyMap) {
+        const excludedFrequencyMode = (ascending ? 'occurrence-based' : 'rank-based');
+        /** @type {Map<number, Map<string, number>>} */
+        const headwordDictionaryFrequencies = new Map();
+        for (const {headwordIndex, dictionary, frequency, displayValue, frequencyMode} of frequencies) {
+            if (frequencyMode === excludedFrequencyMode) { continue; }
+            const value = this._getAverageFrequencyValue(frequency, displayValue);
+            let dictionaryFrequencies = headwordDictionaryFrequencies.get(headwordIndex);
+            if (typeof dictionaryFrequencies === 'undefined') {
+                dictionaryFrequencies = new Map();
+                headwordDictionaryFrequencies.set(headwordIndex, dictionaryFrequencies);
+            }
+            // Like the "Average" badge, only the first value of each dictionary is used, even if it is not positive.
+            if (!dictionaryFrequencies.has(dictionary)) {
+                dictionaryFrequencies.set(dictionary, value);
+            }
+        }
+        for (const [headwordIndex, dictionaryFrequencies] of headwordDictionaryFrequencies) {
+            let count = 0;
+            let total = 0;
+            for (const value of dictionaryFrequencies.values()) {
+                if (value <= 0) { continue; }
+                ++count;
+                total += 1 / value;
+            }
+            if (count > 0) {
+                frequencyMap.set(headwordIndex, Math.floor(count / total));
+            }
+        }
+    }
+
+    /**
+     * Gets the numeric frequency used for averaging, preferring the leading number of the
+     * display value like `getFrequencyNumbers` in anki-note-data-creator.js does.
+     * @param {number} frequency
+     * @param {?string} displayValue
+     * @returns {number}
+     */
+    _getAverageFrequencyValue(frequency, displayValue) {
+        if (displayValue !== null) {
+            const match = /^\d+/.exec(displayValue);
+            if (match !== null) {
+                const value = Number.parseInt(match[0], 10);
+                if (value > 0) { return value; }
+            }
+        }
+        return frequency;
     }
 
     /**
