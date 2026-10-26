@@ -17,6 +17,7 @@
  */
 
 import {querySelectorNotNull} from '../../dom/query-selector.js';
+import {SORT_FREQUENCY_DICTIONARY_AVERAGE} from '../../language/frequency-sort.js';
 
 export class SortFrequencyDictionaryController {
     /**
@@ -106,6 +107,10 @@ export class SortFrequencyDictionaryController {
         option.value = '';
         option.textContent = 'None';
         fragment.appendChild(option);
+        option = document.createElement('option');
+        option.value = SORT_FREQUENCY_DICTIONARY_AVERAGE;
+        option.textContent = 'Average of all frequency dictionaries';
+        fragment.appendChild(option);
         for (const {title, counts} of dictionaries) {
             if (counts && counts.termMeta && counts.termMeta.freq > 0) {
                 option = document.createElement('option');
@@ -153,6 +158,10 @@ export class SortFrequencyDictionaryController {
      */
     async _getFrequencyOrder(dictionary) {
         const dictionaryInfo = await this._settingsController.application.api.getDictionaryInfo();
+        if (dictionary === SORT_FREQUENCY_DICTIONARY_AVERAGE) {
+            const options = await this._settingsController.getOptions();
+            return this._getAverageFrequencyOrder(dictionaryInfo, options.dictionaries);
+        }
         const dictionaryFrequencyMode = dictionaryInfo.find(({title}) => title === dictionary)?.frequencyMode ?? '';
         switch (dictionaryFrequencyMode) {
             case 'occurrence-based': {
@@ -233,6 +242,28 @@ export class SortFrequencyDictionaryController {
         if (resultSign > 0) { return 'descending'; }
         if (resultSign < 0) { return 'ascending'; }
         return null;
+    }
+
+    /**
+     * The average is a harmonic mean of ranks, so rank-based is used unless every enabled
+     * frequency dictionary with a declared mode is occurrence-based.
+     * @param {import('dictionary-importer').Summary[]} dictionaryInfo
+     * @param {import('settings').DictionariesOptions} dictionaryOptions
+     * @returns {import('settings').SortFrequencyDictionaryOrder}
+     */
+    _getAverageFrequencyOrder(dictionaryInfo, dictionaryOptions) {
+        const enabledDictionaries = new Set();
+        for (const {name, enabled} of dictionaryOptions) {
+            if (enabled) { enabledDictionaries.add(name); }
+        }
+        let hasOccurrenceBased = false;
+        for (const {title, counts, frequencyMode} of dictionaryInfo) {
+            if (!enabledDictionaries.has(title)) { continue; }
+            if (!(counts && counts.termMeta && counts.termMeta.freq > 0)) { continue; }
+            if (frequencyMode === 'rank-based') { return 'ascending'; }
+            if (frequencyMode === 'occurrence-based') { hasOccurrenceBased = true; }
+        }
+        return hasOccurrenceBased ? 'descending' : 'ascending';
     }
 
     /**
