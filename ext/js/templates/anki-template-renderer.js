@@ -25,6 +25,7 @@ import {StructuredContentGenerator} from '../display/structured-content-generato
 import {CssStyleApplier} from '../dom/css-style-applier.js';
 import {convertHiraganaToKatakana, convertKatakanaToHiragana, distributeFurigana, getKanaMorae, getPitchCategory, isMoraPitchHigh} from '../language/ja/japanese.js';
 import {AnkiTemplateRendererContentManager} from './anki-template-renderer-content-manager.js';
+import {getFlatGlossaryText, getSplitTermDefinitions} from './flat-glossary.js';
 import {TemplateRendererMediaProvider} from './template-renderer-media-provider.js';
 import {TemplateRenderer} from './template-renderer.js';
 
@@ -102,6 +103,7 @@ export class AnkiTemplateRenderer {
             ['pitchCategories',  this._pitchCategories.bind(this)],
             ['formatGlossary',   this._formatGlossary.bind(this)],
             ['formatGlossaryPlain', this._formatGlossaryPlain.bind(this)],
+            ['formatGlossaryFlat', this._formatGlossaryFlat.bind(this)],
             ['hasMedia',         this._hasMedia.bind(this)],
             ['getMedia',         this._getMedia.bind(this)],
             ['pronunciation',    this._pronunciation.bind(this)],
@@ -789,6 +791,28 @@ export class AnkiTemplateRenderer {
             case 'text': return this._safeString(this._escapeExpression(content.text));
         }
         return '';
+    }
+
+    /**
+     * Writes a definition's meanings on one line, like "Join selected definitions on one line" does for a selection.
+     * ```{{formatGlossaryFlat definition [dictionary=name] [senseSeparator="; "] [glossSeparator=", "]}}```
+     * @type {import('template-renderer').HelperFunction<string>}
+     */
+    _formatGlossaryFlat(args, _context, options) {
+        const [definition] = args;
+        const {dictionary, senseSeparator, glossSeparator} = options.hash;
+        const data = this._getNoteDataFromOptions(options);
+        const splitTermDefinitions = (
+            typeof definition === 'object' && definition !== null && /** @type {{type?: unknown}} */ (definition).type === 'term' ?
+            getSplitTermDefinitions(data.dictionaryEntry) :
+            null
+        );
+        const text = getFlatGlossaryText(splitTermDefinitions ?? definition, {
+            dictionary: typeof dictionary === 'string' && dictionary.length > 0 ? dictionary : null,
+            senseSeparator: typeof senseSeparator === 'string' ? senseSeparator : '; ',
+            glossSeparator: typeof glossSeparator === 'string' ? glossSeparator : ', ',
+        });
+        return this._safeString(this._escapeExpression(text));
     }
 
     /**
