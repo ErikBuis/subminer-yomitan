@@ -749,6 +749,44 @@ Output:
 
 </details>
 
+### `formatGlossaryFlat`
+
+Writes all meanings of a definition as plain text on one line, the same way **Join selected definitions on one line**
+writes a popup selection. Synonyms of one meaning are joined with `glossSeparator` and separate meanings with
+`senseSeparator`. For structured content that marks its glossaries (such as JMdict and Jitendex), only the glossary
+text is used, so notes, references, examples and forms tables are left out. Definitions tagged `forms` are left out too.
+
+<details>
+  <summary>Syntax:</summary>
+
+<code>{{formatGlossaryFlat <i>definition</i> [dictionary=<i>name</i>] [senseSeparator=<i>text</i>] [glossSeparator=<i>text</i>]}}</code><br>
+
+- _`definition`_ <br>
+  The `definition` of the note data (a term, grouped term, merged term or kanji entry).
+- _`dictionary`_ _(optional)_ <br>
+  Only use definitions from this dictionary.
+- _`senseSeparator`_ _(optional)_ <br>
+  Put between meanings. The default is `; `.
+- _`glossSeparator`_ _(optional)_ <br>
+Put between synonyms of one meaning. The default is `, `.
+</details>
+<details>
+  <summary>Example:</summary>
+
+<!-- prettier-ignore -->
+  ```handlebars
+  {{#if (hasMedia "popupSelectionText")}}{{getMedia "popupSelectionText"}}{{else}}{{formatGlossaryFlat definition}}{{/if}}
+  ```
+
+Output for 頃 (ころ) from JMdict when nothing is selected:
+
+<!-- prettier-ignore -->
+  ```html
+  (approximate) time, around, about, toward; suitable time (or condition); time of year, season
+  ```
+
+</details>
+
 ### `hasMedia` & `getMedia`
 
 Checks to see if a certain type of media is available for a card and injects the relevant content.

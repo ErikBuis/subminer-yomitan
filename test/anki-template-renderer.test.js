@@ -106,9 +106,10 @@ describe('AnkiTemplateRenderer', () => {
 describe('AnkiTemplateRenderer popupSelectionText', () => {
     /**
      * @param {import('anki-templates').Media|undefined} media
+     * @param {string[]} [definitions]
      * @returns {import('template-renderer').CompositeRenderData}
      */
-    function createData(media) {
+    function createData(media, definitions = []) {
         return {
             marker: 'test',
             commonData: {
@@ -122,7 +123,7 @@ describe('AnkiTemplateRenderer popupSelectionText', () => {
                     kunyomi: [],
                     tags: [],
                     stats: {},
-                    definitions: [],
+                    definitions,
                     frequencies: [],
                 },
                 resultOutputMode: 'split',
@@ -167,6 +168,23 @@ describe('AnkiTemplateRenderer popupSelectionText', () => {
             expect(result).toEqual(expectedResult);
             // An empty selection was injected, so it must not be requested again.
             expect(requirements).toEqual([]);
+        });
+    });
+
+    describe('formatGlossaryFlat as the fallback for an empty selection', () => {
+        const flatFallbackTemplate = '{{#if (hasMedia "popupSelectionText")}}{{{getMedia "popupSelectionText"}}}{{else}}{{{formatGlossaryFlat definition}}}{{/if}}';
+        const flatTestCases = [
+            {name: 'selected text wins', media: {popupSelectionText: {value: 'season'}}, template: flatFallbackTemplate, result: 'season'},
+            {name: 'empty selection gives the whole definition on one line', media: {popupSelectionText: {value: ''}}, template: flatFallbackTemplate, result: 'time; <about>; toward'},
+            {name: 'separators can be set', media: {popupSelectionText: {value: ''}}, template: '{{{formatGlossaryFlat definition senseSeparator=" / "}}}', result: 'time / <about> / toward'},
+            {name: 'double braces do not escape twice', media: {popupSelectionText: {value: ''}}, template: '{{formatGlossaryFlat definition}}', result: 'time; <about>; toward'},
+        ];
+        describe.each(flatTestCases)('$name', ({media, template, result: expectedResult}) => {
+            test('Test', ({expect, ankiTemplateRenderer}) => {
+                const data = createData(/** @type {import('anki-templates').Media} */ (media), ['time', '<about>', 'toward']);
+                const {result} = ankiTemplateRenderer.templateRenderer.render(template, data, 'ankiNote');
+                expect(result).toEqual(expectedResult.replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
+            });
         });
     });
 });
