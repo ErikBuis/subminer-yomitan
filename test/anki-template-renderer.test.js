@@ -102,3 +102,71 @@ describe('AnkiTemplateRenderer', () => {
         });
     });
 });
+
+describe('AnkiTemplateRenderer popupSelectionText', () => {
+    /**
+     * @param {import('anki-templates').Media|undefined} media
+     * @returns {import('template-renderer').CompositeRenderData}
+     */
+    function createData(media) {
+        return {
+            marker: 'test',
+            commonData: {
+                dictionaryEntry: {
+                    type: 'kanji',
+                    character: 'c',
+                    dictionary: 'dictionary',
+                    dictionaryIndex: 0,
+                    dictionaryAlias: 'dictionaryAlias',
+                    onyomi: [],
+                    kunyomi: [],
+                    tags: [],
+                    stats: {},
+                    definitions: [],
+                    frequencies: [],
+                },
+                resultOutputMode: 'split',
+                cardFormat: {
+                    type: 'term',
+                    name: 'test',
+                    deck: 'deck',
+                    model: 'model',
+                    fields: {},
+                    icon: 'big-circle',
+                },
+                glossaryLayoutMode: 'default',
+                compactTags: false,
+                context: {
+                    url: 'http://localhost/',
+                    documentTitle: 'documentTitle',
+                    query: 'query',
+                    fullQuery: 'query.full',
+                    sentence: {
+                        text: 'sentence.query.full',
+                        offset: 9,
+                    },
+                },
+                media,
+                dictionaryStylesMap: new Map(),
+            },
+        };
+    }
+    // A custom marker that uses the selection and falls back to the definition when nothing is selected.
+    const fallbackTemplate = '{{#if (hasMedia "popupSelectionText")}}{{{getMedia "popupSelectionText"}}}{{else}}fallback{{/if}}';
+    const plainTemplate = '{{#if (hasMedia "popupSelectionText")}}{{{getMedia "popupSelectionText"}}}{{/if}}';
+    const testCases = [
+        {name: 'selected text', media: {popupSelectionText: {value: 'pretense, (false) show'}}, template: fallbackTemplate, result: 'pretense, (false) show'},
+        {name: 'empty selection falls back', media: {popupSelectionText: {value: ''}}, template: fallbackTemplate, result: 'fallback'},
+        {name: 'whitespace-only selection falls back', media: {popupSelectionText: {value: ' \n '}}, template: fallbackTemplate, result: 'fallback'},
+        {name: 'empty selection with the default marker stays empty', media: {popupSelectionText: {value: ''}}, template: plainTemplate, result: ''},
+        {name: 'getMedia of an empty selection is empty', media: {popupSelectionText: {value: ''}}, template: '[{{{getMedia "popupSelectionText"}}}]', result: '[]'},
+    ];
+    describe.each(testCases)('$name', ({media, template, result: expectedResult}) => {
+        test('Test', ({expect, ankiTemplateRenderer}) => {
+            const {result, requirements} = ankiTemplateRenderer.templateRenderer.render(template, createData(/** @type {import('anki-templates').Media} */ (media)), 'ankiNote');
+            expect(result).toEqual(expectedResult);
+            // An empty selection was injected, so it must not be requested again.
+            expect(requirements).toEqual([]);
+        });
+    });
+});
