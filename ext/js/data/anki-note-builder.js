@@ -18,6 +18,7 @@
 
 import {ExtensionError} from '../core/extension-error.js';
 import {deferPromise, sanitizeCSS} from '../core/utilities.js';
+import {getGlossarySelectionText} from '../dom/glossary-selection-text.js';
 import {convertHiraganaToKatakana, convertKatakanaToHiragana} from '../language/ja/japanese.js';
 import {cloneFieldMarkerPattern, getRootDeckName} from './anki-util.js';
 
@@ -460,7 +461,7 @@ export class AnkiNoteBuilder {
         }
 
         // Inject media
-        const popupSelectionText = injectPopupSelectionText ? this._getPopupSelectionText() : null;
+        const popupSelectionText = injectPopupSelectionText ? this._getPopupSelectionText(mediaOptions.popupSelection ?? null) : null;
         const injectedMedia = await this._api.injectAnkiNoteMedia(
             timestamp,
             dictionaryEntryDetails,
@@ -497,11 +498,13 @@ export class AnkiNoteBuilder {
     }
 
     /**
+     * @param {?import('anki-note-builder').PopupSelectionSeparators} separators When set, selected glossary text is flattened onto one line.
      * @returns {string}
      */
-    _getPopupSelectionText() {
+    _getPopupSelectionText(separators) {
         const selection = document.getSelection();
-        return selection !== null ? selection.toString() : '';
+        if (selection === null) { return ''; }
+        return (separators !== null ? getGlossarySelectionText(selection, separators) : null) ?? selection.toString();
     }
 
     /**

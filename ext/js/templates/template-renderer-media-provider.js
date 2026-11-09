@@ -101,7 +101,7 @@ export class TemplateRendererMediaProvider {
             case 'screenshot': return this._getSimpleMediaData(media, 'screenshot');
             case 'clipboardImage': return this._getSimpleMediaData(media, 'clipboardImage');
             case 'clipboardText': return this._getSimpleMediaData(media, 'clipboardText');
-            case 'popupSelectionText': return this._getSimpleMediaData(media, 'popupSelectionText');
+            case 'popupSelectionText': return this._getPopupSelectionTextData(media);
             case 'textFurigana': return this._getTextFurigana(media, args[1], namedArgs, 'furiganaHtml');
             case 'textFuriganaPlain': return this._getTextFurigana(media, args[1], namedArgs, 'furiganaPlain');
             case 'dictionaryMedia': return this._getDictionaryMedia(media, args[1], namedArgs);
@@ -119,6 +119,17 @@ export class TemplateRendererMediaProvider {
         if (typeof result === 'object' && result !== null) { return result; }
         this._addRequirement({type});
         return null;
+    }
+
+    /**
+     * Nothing selected is reported as missing media, not as empty text, so a template
+     * can test `hasMedia "popupSelectionText"` and fall back to something else.
+     * @param {import('anki-templates').Media} media
+     * @returns {?import('anki-templates').MediaObject}
+     */
+    _getPopupSelectionTextData(media) {
+        const result = this._getSimpleMediaData(media, 'popupSelectionText');
+        return (result !== null && result.value.trim().length > 0 ? result : null);
     }
 
     /**

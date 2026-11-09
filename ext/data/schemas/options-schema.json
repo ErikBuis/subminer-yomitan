@@ -1008,7 +1008,10 @@
                                     "apiKey",
                                     "downloadTimeout",
                                     "forceSync",
-                                    "noteDupeCheckFirst"
+                                    "noteDupeCheckFirst",
+                                    "flattenPopupSelection",
+                                    "popupSelectionSenseSeparator",
+                                    "popupSelectionGlossSeparator"
                                 ],
                                 "properties": {
                                     "enable": {
@@ -1188,6 +1191,18 @@
                                     "noteDupeCheckFirst": {
                                         "type": "boolean",
                                         "default": false
+                                    },
+                                    "flattenPopupSelection": {
+                                        "type": "boolean",
+                                        "default": false
+                                    },
+                                    "popupSelectionSenseSeparator": {
+                                        "type": "string",
+                                        "default": "; "
+                                    },
+                                    "popupSelectionGlossSeparator": {
+                                        "type": "string",
+                                        "default": ", "
                                     }
                                 }
                             },
