@@ -40,7 +40,7 @@ export function getScanStartToken(textSource, tokenSelector) {
 }
 
 /**
- * Shortens `textSource` (already extended to `length` characters) until it ends inside `token`.
+ * Shortens `textSource` (already extended to `length` characters, counted as code points) until it ends inside `token`.
  * Counting through the scanner itself keeps characters it skips (ruby text, hidden nodes) and
  * characters outside the BMP right.
  * @param {import('text-source').TextSource} textSource
@@ -49,6 +49,12 @@ export function getScanStartToken(textSource, tokenSelector) {
  * @param {boolean} layoutAwareScan
  */
 export function constrainToToken(textSource, token, length, layoutAwareScan) {
+    // The word can't hold more characters than its text, so start from there instead of the full scan length.
+    const tokenLength = [...(token.textContent ?? '')].length;
+    if (tokenLength < length) {
+        length = tokenLength;
+        textSource.setEndOffset(length, false, layoutAwareScan);
+    }
     while (length > 0 && !textSource.getNodesInRange().every((node) => token.contains(node))) {
         --length;
         textSource.setEndOffset(length, false, layoutAwareScan);

@@ -380,7 +380,7 @@ export class TextScanner extends EventDispatcher {
         // Only pointer scans: SubMiner's keyboard character mode selects text on purpose to search past the word.
         const token = pointerType === 'script' ? null : getScanStartToken(textSource, this._tokenSelector);
         if (token !== null) {
-            constrainToToken(clonedTextSource, token, clonedTextSource.text().length, layoutAwareScan);
+            constrainToToken(clonedTextSource, token, length, layoutAwareScan);
         }
 
         const includeSelector = this._includeSelector;
