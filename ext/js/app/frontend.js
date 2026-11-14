@@ -30,6 +30,8 @@ import {TextScanner} from '../language/text-scanner.js';
 
 const SUBMINER_FRONTEND_COMMAND_EVENT = 'subminer-yomitan-popup-command';
 const SUBMINER_LOOKUP_EVENT = 'subminer-yomitan-lookup';
+// One element per subtitle word in SubMiner's overlay; see getTokenScanLimit.
+const SUBMINER_TOKEN_SELECTOR = '#subtitleRoot .word[data-token-index]';
 /** @type {Set<Frontend>} */
 const subminerFrontendInstances = new Set();
 let subminerFrontendCommandBridgeRegistered = false;
@@ -157,6 +159,7 @@ export class Frontend {
             textSourceGenerator: this._textSourceGenerator,
             browser: browser,
         });
+        this._textScanner.tokenSelector = SUBMINER_TOKEN_SELECTOR;
         /** @type {boolean} */
         this._textScannerHasBeenEnabled = false;
         /** @type {Map<'default'|'window'|'iframe'|'proxy', Promise<?import('popup').PopupAny>>} */
