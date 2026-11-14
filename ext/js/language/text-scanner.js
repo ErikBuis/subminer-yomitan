@@ -375,7 +375,8 @@ export class TextScanner extends EventDispatcher {
     getTextSourceContent(textSource, length, layoutAwareScan, pointerType) {
         const clonedTextSource = textSource.clone();
 
-        const tokenLimit = getTokenScanLimit(textSource, this._tokenSelector);
+        // Only pointer scans: SubMiner's keyboard character mode selects text on purpose to search past the word.
+        const tokenLimit = pointerType === 'script' ? null : getTokenScanLimit(textSource, this._tokenSelector);
         clonedTextSource.setEndOffset(tokenLimit !== null ? Math.min(length, tokenLimit) : length, false, layoutAwareScan);
 
         const includeSelector = this._includeSelector;

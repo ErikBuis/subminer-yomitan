@@ -21,6 +21,7 @@ import {afterAll, describe, expect, test} from 'vitest';
 import {TextSourceElement} from '../ext/js/dom/text-source-element.js';
 import {TextSourceRange} from '../ext/js/dom/text-source-range.js';
 import {getTokenScanLimit} from '../ext/js/dom/token-scan-limit.js';
+import {TextSourceGenerator} from '../ext/js/dom/text-source-generator.js';
 import {setupDomTest} from './fixtures/dom-test.js';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -75,5 +76,25 @@ describe('getTokenScanLimit', () => {
         const limited = source.clone();
         limited.setEndOffset(Math.min(16, /** @type {number} */ (getTokenScanLimit(source, SELECTOR))), false, false);
         expect(limited.text()).toBe('いい');
+    });
+
+    test('TextScanner limits mouse scans but not script scans such as keyboard lookups', async () => {
+        const {TextScanner} = await import('../ext/js/language/text-scanner.js');
+        const scanner = new TextScanner({
+            api: /** @type {import('../ext/js/comm/api.js').API} */ (/** @type {unknown} */ ({})),
+            node: /** @type {Window} */ (/** @type {unknown} */ (window)),
+            getSearchContext: () => ({optionsContext: {index: 0}, detail: {documentTitle: ''}}),
+            textSourceGenerator: new TextSourceGenerator(),
+            browser: 'chrome',
+        });
+        const source = sourceAt('subtitleRoot', 0, 0);
+        // Without a selector nothing changes.
+        expect(scanner.getTextSourceContent(source, 16, false, 'mouse').trim()).toBe('いいんだろうか');
+        expect(scanner.getTextSourceContent(source, 16, false, 'script').trim()).toBe('いいんだろうか');
+
+        scanner.tokenSelector = SELECTOR;
+        expect(scanner.getTextSourceContent(source, 16, false, 'mouse')).toBe('いい');
+        expect(scanner.getTextSourceContent(source, 1, false, 'mouse')).toBe('い');
+        expect(scanner.getTextSourceContent(source, 16, false, 'script').trim()).toBe('いいんだろうか');
     });
 });
