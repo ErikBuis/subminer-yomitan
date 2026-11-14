@@ -24,6 +24,7 @@ import {safePerformance} from '../core/safe-performance.js';
 import {clone} from '../core/utilities.js';
 import {anyNodeMatchesSelector, everyNodeMatchesSelector, getActiveModifiers, getActiveModifiersAndButtons, isPointInSelection} from '../dom/document-util.js';
 import {TextSourceElement} from '../dom/text-source-element.js';
+import {constrainToToken, getScanStartToken} from '../dom/token-scan-limit.js';
 
 const SCAN_RESOLUTION_EXCLUDED_LANGUAGES = new Set(['ja', 'zh', 'yue', 'ko']);
 
@@ -77,6 +78,8 @@ export class TextScanner extends EventDispatcher {
         this._excludeSelector = null;
         /** @type {?string} */
         this._touchExcludeSelector = null;
+        /** @type {?string} */
+        this._tokenSelector = null;
         /** @type {?string} */
         this._language = null;
         /** @type {?import('environment').Browser} */
@@ -206,6 +209,18 @@ export class TextScanner extends EventDispatcher {
 
     set excludeSelector(value) {
         this._excludeSelector = value;
+    }
+
+    /**
+     * Elements that each hold one word. A scan starting at a word's first character stays inside that word.
+     * @type {?string}
+     */
+    get tokenSelector() {
+        return this._tokenSelector;
+    }
+
+    set tokenSelector(value) {
+        this._tokenSelector = value;
     }
 
     /** @type {?string} */
@@ -361,6 +376,12 @@ export class TextScanner extends EventDispatcher {
         const clonedTextSource = textSource.clone();
 
         clonedTextSource.setEndOffset(length, false, layoutAwareScan);
+
+        // Only pointer scans: SubMiner's keyboard character mode selects text on purpose to search past the word.
+        const token = pointerType === 'script' ? null : getScanStartToken(textSource, this._tokenSelector);
+        if (token !== null) {
+            constrainToToken(clonedTextSource, token, length, layoutAwareScan);
+        }
 
         const includeSelector = this._includeSelector;
         const excludeSelector = this._getExcludeSelectorForPointerType(pointerType);
