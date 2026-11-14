@@ -20,15 +20,17 @@ import path from 'path';
 import {afterAll, describe, expect, test} from 'vitest';
 import {TextSourceElement} from '../ext/js/dom/text-source-element.js';
 import {TextSourceRange} from '../ext/js/dom/text-source-range.js';
-import {getTokenScanLimit} from '../ext/js/dom/token-scan-limit.js';
+import {getScanStartToken} from '../ext/js/dom/token-scan-limit.js';
 import {TextSourceGenerator} from '../ext/js/dom/text-source-generator.js';
 import {setupDomTest} from './fixtures/dom-test.js';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const testEnv = await setupDomTest(path.join(dirname, 'data/html/token-scan-limit.html'));
-const SELECTOR = '#subtitleRoot .word[data-token-index], #subtitleRootImage .word[data-token-index]';
+const SELECTOR = ['subtitleRoot', 'subtitleRootImage', 'subtitleRootRuby', 'subtitleRootAstral']
+    .map((id) => `#${id} .word[data-token-index]`)
+    .join(', ');
 
-describe('getTokenScanLimit', () => {
+describe('hover scans stay inside the word they start on', () => {
     const {window, teardown} = testEnv;
     afterAll(() => teardown(global));
 
@@ -48,37 +50,11 @@ describe('getTokenScanLimit', () => {
         return TextSourceRange.create(range);
     }
 
-    test('limits a scan from the first character to the word', () => {
-        expect(getTokenScanLimit(sourceAt('subtitleRoot', 0, 0), SELECTOR)).toBe(2);
-        expect(getTokenScanLimit(sourceAt('subtitleRoot', 2, 0), SELECTOR)).toBe(3);
-    });
-
-    test('leaves a scan from a later character alone', () => {
-        expect(getTokenScanLimit(sourceAt('subtitleRoot', 0, 1), SELECTOR)).toBeNull();
-    });
-
-    test('counts only text when the word starts with a character image', () => {
-        expect(getTokenScanLimit(sourceAt('subtitleRootImage', 0, 0), SELECTOR)).toBe(3);
-    });
-
-    test('ignores text outside the word elements and without a selector', () => {
-        expect(getTokenScanLimit(sourceAt('other', 0, 0), SELECTOR)).toBeNull();
-        expect(getTokenScanLimit(sourceAt('subtitleRoot', 0, 0), null)).toBeNull();
-        const element = /** @type {HTMLElement} */ (window.document.querySelector('#subtitleRootImage img'));
-        expect(getTokenScanLimit(TextSourceElement.create(element), SELECTOR)).toBeNull();
-    });
-
-    test('the limited scan text is the highlighted word', () => {
-        const source = sourceAt('subtitleRoot', 0, 0);
-        const clone = source.clone();
-        clone.setEndOffset(16, false, false);
-        expect(clone.text().trim()).toBe('いいんだろうか');
-        const limited = source.clone();
-        limited.setEndOffset(Math.min(16, /** @type {number} */ (getTokenScanLimit(source, SELECTOR))), false, false);
-        expect(limited.text()).toBe('いい');
-    });
-
-    test('TextScanner limits mouse scans but not script scans such as keyboard lookups', async () => {
+    /**
+     * @param {?string} tokenSelector
+     * @returns {Promise<import('../ext/js/language/text-scanner.js').TextScanner>}
+     */
+    async function createScanner(tokenSelector) {
         const {TextScanner} = await import('../ext/js/language/text-scanner.js');
         const scanner = new TextScanner({
             api: /** @type {import('../ext/js/comm/api.js').API} */ (/** @type {unknown} */ ({})),
@@ -87,14 +63,46 @@ describe('getTokenScanLimit', () => {
             textSourceGenerator: new TextSourceGenerator(),
             browser: 'chrome',
         });
-        const source = sourceAt('subtitleRoot', 0, 0);
-        // Without a selector nothing changes.
-        expect(scanner.getTextSourceContent(source, 16, false, 'mouse').trim()).toBe('いいんだろうか');
-        expect(scanner.getTextSourceContent(source, 16, false, 'script').trim()).toBe('いいんだろうか');
+        scanner.tokenSelector = tokenSelector;
+        return scanner;
+    }
 
-        scanner.tokenSelector = SELECTOR;
-        expect(scanner.getTextSourceContent(source, 16, false, 'mouse')).toBe('いい');
-        expect(scanner.getTextSourceContent(source, 1, false, 'mouse')).toBe('い');
-        expect(scanner.getTextSourceContent(source, 16, false, 'script').trim()).toBe('いいんだろうか');
+    test('finds the word only when the scan starts at its first character', () => {
+        const {document} = window;
+        expect(getScanStartToken(sourceAt('subtitleRoot', 0, 0), SELECTOR)).toBe(document.querySelector('#subtitleRoot [data-token-index="0"]'));
+        expect(getScanStartToken(sourceAt('subtitleRoot', 0, 1), SELECTOR)).toBeNull();
+        // A character image before the text doesn't count as a character.
+        expect(getScanStartToken(sourceAt('subtitleRootImage', 0, 0), SELECTOR)).not.toBeNull();
+        expect(getScanStartToken(sourceAt('other', 0, 0), SELECTOR)).toBeNull();
+        expect(getScanStartToken(sourceAt('subtitleRoot', 0, 0), null)).toBeNull();
+        const element = /** @type {HTMLElement} */ (document.querySelector('#subtitleRootImage img'));
+        expect(getScanStartToken(TextSourceElement.create(element), SELECTOR)).toBeNull();
+    });
+
+    test('a mouse scan from the first character stops at the end of the word', async () => {
+        const scanner = await createScanner(SELECTOR);
+        for (const layoutAwareScan of [false, true]) {
+            expect(scanner.getTextSourceContent(sourceAt('subtitleRoot', 0, 0), 16, layoutAwareScan, 'mouse')).toBe('いい');
+            expect(scanner.getTextSourceContent(sourceAt('subtitleRoot', 2, 0), 16, layoutAwareScan, 'mouse')).toBe('だろう');
+            expect(scanner.getTextSourceContent(sourceAt('subtitleRootImage', 0, 0), 16, layoutAwareScan, 'mouse')).toBe('ひとり');
+            // Ruby text is skipped by the scanner, so the word is 漢字 and not 漢字じ.
+            expect(scanner.getTextSourceContent(sourceAt('subtitleRootRuby', 0, 0), 16, layoutAwareScan, 'mouse')).toBe('漢字');
+            // 𠮷 is two UTF-16 units but one character.
+            expect(scanner.getTextSourceContent(sourceAt('subtitleRootAstral', 0, 0), 16, layoutAwareScan, 'mouse')).toBe('𠮷野');
+        }
+        expect(scanner.getTextSourceContent(sourceAt('subtitleRoot', 0, 0), 16, false, 'touch')).toBe('いい');
+        expect(scanner.getTextSourceContent(sourceAt('subtitleRoot', 0, 0), 16, false, 'pen')).toBe('いい');
+        expect(scanner.getTextSourceContent(sourceAt('subtitleRoot', 0, 0), 1, false, 'mouse')).toBe('い');
+    });
+
+    test('other scans are unchanged', async () => {
+        const scanner = await createScanner(SELECTOR);
+        // From a later character.
+        expect(scanner.getTextSourceContent(sourceAt('subtitleRoot', 0, 1), 6, false, 'mouse')).toBe('いんだろうか');
+        // Keyboard lookups (script scans) search past the word on purpose.
+        expect(scanner.getTextSourceContent(sourceAt('subtitleRoot', 0, 0), 7, false, 'script')).toBe('いいんだろうか');
+        // Without a selector.
+        const plain = await createScanner(null);
+        expect(plain.getTextSourceContent(sourceAt('subtitleRoot', 0, 0), 7, false, 'mouse')).toBe('いいんだろうか');
     });
 });

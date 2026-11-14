@@ -19,12 +19,12 @@
  * SubMiner draws each word of a subtitle as its own element and highlights that whole element on
  * hover. A scan that starts on the first character of such a word must not run past its end, or
  * the popup can show a longer word than the highlight (いいん/医院 for a highlighted いい).
- * Returns the word's length when the scan starts at the word's first character, else null.
+ * Returns the word element when the scan starts at the word's first character, else null.
  * @param {import('text-source').TextSource} textSource
  * @param {?string} tokenSelector
- * @returns {?number}
+ * @returns {?Element}
  */
-export function getTokenScanLimit(textSource, tokenSelector) {
+export function getScanStartToken(textSource, tokenSelector) {
     if (tokenSelector === null || textSource.type !== 'range') { return null; }
     const {range} = /** @type {import('./text-source-range.js').TextSourceRange} */ (textSource);
     const node = range.startContainer;
@@ -36,8 +36,21 @@ export function getTokenScanLimit(textSource, tokenSelector) {
 
     // Only the token's first text node starts the word.
     const walker = token.ownerDocument.createTreeWalker(token, NodeFilter.SHOW_TEXT);
-    if (walker.nextNode() !== node) { return null; }
+    return walker.nextNode() === node ? token : null;
+}
 
-    const length = (token.textContent ?? '').length;
-    return length > 0 ? length : null;
+/**
+ * Shortens `textSource` (already extended to `length` characters) until it ends inside `token`.
+ * Counting through the scanner itself keeps characters it skips (ruby text, hidden nodes) and
+ * characters outside the BMP right.
+ * @param {import('text-source').TextSource} textSource
+ * @param {Element} token
+ * @param {number} length
+ * @param {boolean} layoutAwareScan
+ */
+export function constrainToToken(textSource, token, length, layoutAwareScan) {
+    while (length > 0 && !textSource.getNodesInRange().every((node) => token.contains(node))) {
+        --length;
+        textSource.setEndOffset(length, false, layoutAwareScan);
+    }
 }
